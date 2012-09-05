@@ -7,5 +7,6 @@ setup(
     author = 'Anton Romanovich',
     author_email = 'anthony.romanovich@gmail.com',
     
-    py_modules=['oowrapper']
+    py_modules=['oowrapper'],
+    scripts=['oowrapper']
 )
