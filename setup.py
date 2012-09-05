@@ -8,5 +8,5 @@ setup(
     author_email = 'anthony.romanovich@gmail.com',
     
     py_modules=['oowrapper'],
-    scripts=['oowrapper']
+    scripts=['oowrapper.py']
 )
