@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!/opt/openoffice.org3/program/python
 import os
 import sys
 import time
@@ -15,7 +15,7 @@ from com.sun.star.beans import PropertyValue
 from com.sun.star.io import XOutputStream
 
 
-OPENOFFICE_BIN = '/usr/bin/libreoffice'
+OPENOFFICE_BIN = '/opt/openoffice.org3/program/swriter'
 FILTER_MAP = {
     'doc': 'MS Word 97',
     'docx': 'MS Word 2007 XML',
@@ -50,10 +50,11 @@ def to_properties(d):
 
 def start_openoffice(home_dir, port):
     args = [OPENOFFICE_BIN,
-            '--accept=socket,host=localhost,port=%d;urp;StarOffice.ServiceManager' % port,
-            '--userid="%s"' % home_dir,
-            '--norestore', '--nofirststartwizard', '--nologo', '--nocrashreport',
-            '--nodefault', '--quickstart', '--norestart', '--nolockcheck', '--headless']
+            '-accept=socket,host=localhost,port=%d;urp;StarOffice.ServiceManager' % port,
+            '-userid="%s"' % home_dir, '-norestore', '-nofirststartwizard', '-nologo',
+            '-nocrashreport', '-nodefault', '-quickstart', '-norestart', '-nolockcheck',
+            '-headless', '-invisible']
+
     custom_env = os.environ.copy()
     custom_env['HOME'] = home_dir
 
@@ -68,25 +69,24 @@ def start_openoffice(home_dir, port):
         print >> sys.stderr, 'Failed to start OpenOffice on port %d' % port
         exit(1)
 
-    context = uno.getComponentContext()
-    svc_mgr = context.ServiceManager
-    resolver = svc_mgr.createInstanceWithContext('com.sun.star.bridge.UnoUrlResolver', context)
     connection_params = 'uno:socket,host=%s,port=%s;urp;' \
                         'StarOffice.ComponentContext' % ('localhost', port)
 
     uno_context = None
-    for times in xrange(5):
+    for times in range(5):
+        context = uno.getComponentContext()
+        resolver = context.ServiceManager.createInstanceWithContext(
+                "com.sun.star.bridge.UnoUrlResolver", context)
         try:
             uno_context = resolver.resolve(connection_params)
             break
         except NoConnectException:
             time.sleep(1)
-
     if not uno_context:
         exit(1)
 
-    uno_svc_mgr = uno_context.ServiceManager
-    desktop = uno_svc_mgr.createInstanceWithContext('com.sun.star.frame.Desktop', uno_context)
+    desktop = uno_context.ServiceManager.createInstanceWithContext(
+            'com.sun.star.frame.Desktop', context)
     return popen, context, desktop
 
 
@@ -100,7 +100,6 @@ def get_free_port():
 
 def convert(source, target, target_format):
     home_dir = tempfile.mkdtemp()
-    return_code = 1
 
     try:
         port = get_free_port()
@@ -113,15 +112,21 @@ def convert(source, target, target_format):
         doc = desktop.loadComponentFromURL('private:stream', '_blank', 0, to_properties({
            'InputStream': input_stream,
         }))
-        doc.storeToURL('private:stream', to_properties({
-            'FilterName': FILTER_MAP[target_format],
-            'OutputStream': OutputStream(target)
-        }))
+        
+        try:
+            doc.refresh()
+        except AttributeError:
+            pass
 
-        doc.dispose()
-        doc.close(True)
+        try:
+            doc.storeToURL('private:stream', to_properties({
+                'FilterName': FILTER_MAP[target_format],
+                'OutputStream': OutputStream(target)
+            }))
+        finally:
+            doc.close(True)
+    
         desktop.terminate()
-
         exit(popen.wait())
     except Exception as e:
         print >> sys.stderr, e
@@ -131,36 +136,33 @@ def convert(source, target, target_format):
 
 
 def main():
-    parser = OptionParser()
-    parser.add_option('-s', '--source', dest='source_file',
-            help='Source file or `-` for stdin', metavar='FILE')
-    parser.add_option('-t', '--target', dest='target_file',
-            help='Target file or `-` for stdout', metavar='FILE')
+    usage = '''usage: %prog [options] source target
+    `source` is the source file path or '-' for stdin;
+    `target` is the target file path or '-' for stdout.
+    If `target` is '-' or has no extension, --format option must be specified.
+    '''
+    parser = OptionParser(usage=usage)
     parser.add_option('-f', '--format', dest='target_format',
             help='Target format of the file', metavar='FORMAT')
-    (options, args) = parser.parse_args()
+    
+    try:
+        (options, (source_file, target_file,)) = parser.parse_args()
+    except ValueError:
+        parser.error('Two positional arguments are required.')
 
-    source_file = options.source_file
-    target_file = options.target_file
     target_format = options.target_format
 
+    _, target_file_ext = os.path.splitext(target_file)
+    target_file_ext = target_file_ext.replace('.', '')
+
+    if not target_format and target_file_ext in FILTER_MAP.keys():
+        target_format = target_file_ext
+
     if target_format is None:
-        parser.error('Target format is required.')
-    if source_file is None:
-        parser.error('Source file is not specified.')
-    if target_file is None:
-        parser.error('Target file is not specified.')
+        parser.error('You must specify target format.')
 
-    if source_file == '-':
-        source = sys.stdin
-    else:
-        source = open(source_file, 'r')
-
-    if target_file == '-':
-        target = sys.stdout
-    else:
-        target = open(source_file, 'r')
-
+    source = sys.stdin if source_file == '-' else open(source_file, 'r')
+    target = sys.stdout if target_file == '-' else open(target_file, 'w')
     convert(source, target, target_format)
 
 
