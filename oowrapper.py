@@ -57,7 +57,6 @@ def start_openoffice(home_dir, port):
 
     custom_env = os.environ.copy()
     custom_env['HOME'] = home_dir
-
     try:
         popen = subprocess.Popen(args, env=custom_env)
         pid = popen.pid
@@ -73,7 +72,7 @@ def start_openoffice(home_dir, port):
                         'StarOffice.ComponentContext' % ('localhost', port)
 
     uno_context = None
-    for times in range(5):
+    for times in range(10):
         context = uno.getComponentContext()
         resolver = context.ServiceManager.createInstanceWithContext(
                 "com.sun.star.bridge.UnoUrlResolver", context)
@@ -100,7 +99,7 @@ def get_free_port():
 
 def convert(source, target, target_format):
     home_dir = tempfile.mkdtemp()
-
+    errcode = None
     try:
         port = get_free_port()
         popen, context, desktop = start_openoffice(home_dir, port)
@@ -112,7 +111,7 @@ def convert(source, target, target_format):
         doc = desktop.loadComponentFromURL('private:stream', '_blank', 0, to_properties({
            'InputStream': input_stream,
         }))
-        
+
         try:
             doc.refresh()
         except AttributeError:
@@ -126,13 +125,24 @@ def convert(source, target, target_format):
         finally:
             doc.close(True)
     
-        desktop.terminate()
-        exit(popen.wait())
+        try:
+            desktop.terminate()
+        except:
+            pass
+
+        errcode = popen.wait()
     except Exception as e:
         print >> sys.stderr, e
-        exit(1)
+        errcode = 1
     finally:
+        if not errcode:
+            try:
+                errcode = popen.kill()
+            except:
+                pass
+        time.sleep(0.5)
         shutil.rmtree(home_dir)
+        exit(errcode)
 
 
 def main():
