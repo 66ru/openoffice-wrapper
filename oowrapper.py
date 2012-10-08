@@ -14,8 +14,8 @@ from com.sun.star.connection import NoConnectException
 from com.sun.star.beans import PropertyValue
 from com.sun.star.io import XOutputStream
 
-
 OPENOFFICE_BIN = '/opt/openoffice.org3/program/swriter'
+
 FILTER_MAP = {
     'doc': 'MS Word 97',
     'docx': 'MS Word 2007 XML',
@@ -23,7 +23,7 @@ FILTER_MAP = {
     'pdf': 'writer_pdf_Export',
     'rtf': 'Rich Text Format',
     'txt': 'Text (encoded)',
-    'html': 'XHTML Writer File',
+    'html': 'HTML (StarWriter)',
 }
 
 
@@ -72,7 +72,7 @@ def start_openoffice(home_dir, port):
                         'StarOffice.ComponentContext' % ('localhost', port)
 
     uno_context = None
-    for times in range(10):
+    for times in range(20):
         context = uno.getComponentContext()
         resolver = context.ServiceManager.createInstanceWithContext(
                 "com.sun.star.bridge.UnoUrlResolver", context)
@@ -116,7 +116,6 @@ def convert(source, target, target_format):
             doc.refresh()
         except AttributeError:
             pass
-
         try:
             doc.storeToURL('private:stream', to_properties({
                 'FilterName': FILTER_MAP[target_format],
@@ -135,7 +134,7 @@ def convert(source, target, target_format):
         print >> sys.stderr, e
         errcode = 1
     finally:
-        if not errcode:
+        if errcode is None:
             try:
                 errcode = popen.kill()
             except:
