@@ -100,6 +100,7 @@ def get_free_port():
 def convert(source, target, target_format):
     home_dir = tempfile.mkdtemp()
     errcode = None
+    popen = None
     try:
         port = get_free_port()
         popen, context, desktop = start_openoffice(home_dir, port)
@@ -129,12 +130,13 @@ def convert(source, target, target_format):
         except:
             pass
 
-        errcode = popen.wait()
+        if popen.returncode is None:
+            errcode = popen.wait()
     except Exception as e:
         print >> sys.stderr, e
         errcode = 1
     finally:
-        if errcode is None:
+        if errcode is None and popen and popen.returncode is None:
             try:
                 errcode = popen.kill()
             except:
