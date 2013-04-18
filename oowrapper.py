@@ -14,7 +14,8 @@ from com.sun.star.connection import NoConnectException
 from com.sun.star.beans import PropertyValue
 from com.sun.star.io import XOutputStream
 
-OPENOFFICE_BIN = '/opt/openoffice.org3/program/swriter'
+
+OPENOFFICE_BIN = '/opt/openoffice.org3/program/soffice'
 
 FILTER_MAP = {
     'doc': 'MS Word 97',
@@ -24,6 +25,10 @@ FILTER_MAP = {
     'rtf': 'Rich Text Format',
     'txt': 'Text (encoded)',
     'html': 'HTML (StarWriter)',
+
+    'ppt': 'MS PowerPoint 97',
+    'pptx': 'Impress MS PowerPoint 2007 XML',
+    'odp': 'impress8',
 }
 
 
@@ -120,7 +125,7 @@ def convert(source, target, target_format):
         try:
             doc.storeToURL('private:stream', to_properties({
                 'FilterName': FILTER_MAP[target_format],
-                'OutputStream': OutputStream(target)
+                'OutputStream': OutputStream(target),
             }))
         finally:
             doc.close(True)
